@@ -1,2 +1,5 @@
 # battleship
-Battleship game built with Test Driven Development
+
+Play battleship, the classic board game, with a friend or the computer. The player which sinks all the ships of the opponents first, wins the game. But this will not be easy, because the player could not see the enemy ships. He will have to read the mind of the enemy to figure out where they could have placed their ships or simply have to trust their luck to click on the right coordinate. 
+
+This game will follow the TDD (test driven development) philosophy for development. Most of the game logic will be prepared before beginning work on the DOM, to showcase how logic is a seperate entity than the user interface and test driven development can be used to prepare the logic module. The testing will only be done on the object's public interface where the validity of output can be verified.
