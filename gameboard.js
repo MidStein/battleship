@@ -1,3 +1,5 @@
+import Ship from './ship';
+
 export default function Gameboard() {
     const missed = [];
 
@@ -18,6 +20,7 @@ export default function Gameboard() {
     }
 
     return {
+        
         recieveAttack,
         allSunk
     };
