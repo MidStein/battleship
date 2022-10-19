@@ -1,14 +1,9 @@
+/* eslint-disable no-undef */
 import Ship from './ship';
 
 let instance;
 beforeEach(() => {
     instance = Ship(3);
-});
-
-test("get functions don't mutate variables", () => {
-    let returnedVal = instance.getLength();
-    returnedVal += 1;
-    expect(returnedVal - 1).toBe(instance.getLength());
 });
 
 test('hit() works', () => {

@@ -21,4 +21,4 @@ test('allSunk() works', () => {
     instance.recieveAttack([5, 0]);
     instance.recieveAttack([6, 0]);
     expect(instance.allSunk()).toBeFalsy();
-})
+});
