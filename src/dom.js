@@ -6,32 +6,38 @@ function importAll(r) {
     return imagesMap;
 }
 
-const imagesMap = importAll(require.context('./images', false, /\.(png|jpe?g|svg)$/));
+const imagesMap = importAll(require.context('./images/ship-images', false, /\.(png|jpe?g|svg)$/));
 const Dom = (function () {
+    let userPlayer;
+    let compPlayer;
+    const compBeforeShot = {
+        lastHit: false,
+        lastToLastHit: false,
+    };
     const occupiedCells = [];
     const userBoard = document.querySelector('.user-board');
 
     const playerShipsLeft = {
-        'Carrier': 1,
-        'Battleship': 2,
-        'Destroyer': 2,
-        'Submarine': 1,
+        Carrier: 1,
+        Battleship: 2,
+        Destroyer: 2,
+        Submarine: 1,
         'Patrol Boat': 4,
-    }
+    };
 
     const computerShipsLeft = {
-        'Carrier': 1,
-        'Battleship': 2,
-        'Destroyer': 2,
-        'Submarine': 1,
+        Carrier: 1,
+        Battleship: 2,
+        Destroyer: 2,
+        Submarine: 1,
         'Patrol Boat': 4,
-    }
+    };
 
     function sentenceToKebab(sentence) {
         let kebab = sentence[0].toLowerCase();
         for (let i = 1; i < sentence.length; i += 1) {
             if (sentence[i] === ' ') {
-                kebab += '-' + sentence[i + 1].toLowerCase();
+                kebab += `-${sentence[i + 1].toLowerCase()}`;
                 i += 1;
             } else {
                 kebab += sentence[i];
@@ -46,7 +52,7 @@ const Dom = (function () {
         } else {
             this.src = imagesMap[`${sentenceToKebab(this.alt)}-horizontal`];
         }
-        let temp = this.width;
+        const temp = this.width;
         this.width = this.height;
         this.height = temp;
     }
@@ -57,7 +63,7 @@ const Dom = (function () {
             ev.target.src,
             ev.target.alt,
             ev.target.width,
-            ev.target.height
+            ev.target.height,
         ]);
     }
 
@@ -67,32 +73,22 @@ const Dom = (function () {
     }
 
     function getCoordinates(cell) {
-        let row = 0, column = 0;
+        let row = 0;
+        let column = 0;
         let currRow = cell.parentElement.parentElement.querySelector('.row');
         while (currRow !== cell.parentElement) {
             row += 1;
             currRow = currRow.nextElementSibling;
         }
-        let currCell = cell.parentElement.querySelector('.cell');
+        let currCell = cell.parentElement.firstElementChild;
         while (currCell !== cell) {
-            column++;
+            column += 1;
             currCell = currCell.nextElementSibling;
         }
         return {
             x: row,
             y: column,
         };
-    }
-
-    function beginBattle() {
-        const userBanner = document.querySelector('.user-banner');
-        userBanner.classList.remove('user-banner');
-        userBanner.classList.add('turn-user-banner');
-        document.querySelectorAll('.cell').forEach((cell) => {
-            cell.classList.remove('cell');
-            cell.classList.add('turn-cell');
-        });
-        document.querySelector('.user-board').disabled = true;
     }
 
     function getCell(whichBoard, xCoord, yCoord) {
@@ -107,64 +103,165 @@ const Dom = (function () {
         return currCell;
     }
 
-    function dropHandler(ev, cell, user, computer) {
+    function doAttack() {
+        if (!compPlayer.validateUserAttempt([
+            getCoordinates(this).x,
+            getCoordinates(this).y,
+        ])) return;
+        this.classList.remove('turn-cell');
+        this.classList.add('cell');
+        if (occupiedCells.includes(this)) {
+            this.classList.add('hit');
+        } else {
+            this.classList.add('miss');
+        }
+        if (compPlayer.checkLoss()) {
+            document.querySelectorAll('.turn-cell').forEach((compCell) => {
+                compCell.removeEventListener('click', doAttack);
+                compCell.classList.remove('turn-cell');
+                compCell.classList.add('cell');
+            });
+            document.querySelector('.game-end').textContent = 'You-Win';
+            document.querySelector('.game-end').style.color = '#4f46eb';
+            return;
+        }
+        let shotCell;
+        if (!compBeforeShot.lastHit && !compBeforeShot.lastToLastHit) {
+            shotCell = getCell(userBoard, ...userPlayer.computerPlay());
+        } else {
+            if (compBeforeShot.lastHit) {
+                compBeforeShot.lastToLastHit = true;
+            }
+            const lastShotCoordX = compBeforeShot.coordinates[0];
+            const lastShotCoordY = compBeforeShot.coordinates[1];
+            if (userPlayer.validateUserAttempt([lastShotCoordX, lastShotCoordY - 1])) {
+                shotCell = getCell(userBoard, lastShotCoordX, lastShotCoordY - 1);
+            } else if (userPlayer.validateUserAttempt([lastShotCoordX - 1, lastShotCoordY])) {
+                shotCell = getCell(userBoard, lastShotCoordX - 1, lastShotCoordY);
+            } else if (userPlayer.validateUserAttempt([lastShotCoordX, lastShotCoordY + 1])) {
+                shotCell = getCell(userBoard, lastShotCoordX, lastShotCoordY + 1);
+            } else if (userPlayer.validateUserAttempt([lastShotCoordX + 1, lastShotCoordY])) {
+                shotCell = getCell(userBoard, lastShotCoordX + 1, lastShotCoordY);
+            }
+            if (!shotCell) {
+                shotCell = getCell(userBoard, ...userPlayer.computerPlay());
+            }
+        }
+        if (occupiedCells.includes(shotCell)) {
+            shotCell.classList.add('hit');
+            compBeforeShot.coordinates = [getCoordinates(shotCell).x, getCoordinates(shotCell).y];
+            compBeforeShot.lastHit = true;
+        } else {
+            shotCell.classList.add('miss');
+            compBeforeShot.lastHit = false;
+        }
+        if (userPlayer.checkLoss()) {
+            document.querySelector('.game-end').textContent = 'You-Lost';
+            document.querySelector('.game-end').style.color = '#dc2626';
+        }
+    }
+
+    function beginBattle() {
+        document.querySelector('.computer-board').querySelectorAll('.cell').forEach((compCell) => {
+            compCell.classList.remove('cell');
+            compCell.classList.add('turn-cell');
+            compCell.addEventListener('click', doAttack);
+        });
+    }
+
+    function dropHandler(ev) {
         ev.preventDefault();
-        let oceanShip = new Image();
+        const oceanShip = new Image();
         [oceanShip.src, oceanShip.alt, oceanShip.width, oceanShip.height] = ev.dataTransfer.getData('data').split(',');
-        const coordinates = getCoordinates(cell);
+        const coordinates = getCoordinates(this);
         let length;
-        let whichBoard = cell.parentElement.parentElement;
+        const whichBoard = this.parentElement.parentElement;
+
+        /**
+         * assign length
+         * return if ship will overflow overboard
+         * return if ship will overlap other
+         */
         if (oceanShip.width !== 30) {
-            length = parseInt(oceanShip.width / 35);
-            if ((10 - coordinates.y ) < length) return;
+            length = Math.floor(oceanShip.width / 35);
+            if ((10 - coordinates.y) < length) return;
             for (let i = 0; i < length; i += 1) {
-                if (occupiedCells.includes(getCell(whichBoard, coordinates.x, coordinates.y + i))) return;
+                if (occupiedCells.includes(getCell(
+                    whichBoard,
+                    coordinates.x,
+                    coordinates.y + i,
+                    ))) return;
             }
         } else {
-            length = parseInt(oceanShip.height / 35);
+            length = Math.floor(oceanShip.height / 35);
             if ((10 - coordinates.x) < length) return;
             for (let i = 0; i < length; i += 1) {
-                if (occupiedCells.includes(getCell(whichBoard, coordinates.x + i, coordinates.y))) return;
+                if (occupiedCells.includes(getCell(
+                    whichBoard,
+                    coordinates.x + i,
+                    coordinates.y,
+                    ))) return;
             }
         }
         let whoseBoard;
-        if (cell.parentElement.parentElement === userBoard) {
-            whoseBoard = user;
-            if (--playerShipsLeft[oceanShip.alt] === 0) {
+
+        /**
+         * assign Player()
+         * remove drag & drop ship pieces after limit exceeded
+         * if all such pieces removed start game
+         */
+        if (whichBoard === userBoard) {
+            whoseBoard = userPlayer;
+            playerShipsLeft[oceanShip.alt] -= 1;
+            if (playerShipsLeft[oceanShip.alt] === 0) {
                 document.body.firstElementChild.querySelector(`[alt='${oceanShip.alt}']`).remove();
-                console.log(document.body.firstElementChild.firstElementChild);
-                if (!document.body.firstElementChild.firstElementChild && !document.body.lastElementChild.firstElementChild) {
+                if (
+                    !document.body.firstElementChild.firstElementChild
+                    && !document.body.lastElementChild.firstElementChild
+                    ) {
                     beginBattle();
                 }
-            }
+            } else if (playerShipsLeft[oceanShip.alt] < 0) return;
         } else {
-            whoseBoard = computer;
-            if (--computerShipsLeft[oceanShip.alt] === 0) {
+            whoseBoard = compPlayer;
+            computerShipsLeft[oceanShip.alt] -= 1;
+            if (computerShipsLeft[oceanShip.alt] === 0) {
                 document.body.lastElementChild.querySelector(`[alt='${oceanShip.alt}']`).remove();
-                if (!document.body.lastElementChild.firstElementChild && !document.body.firstElementChild.firstElementChild) {
+                if (
+                    !document.body.lastElementChild.firstElementChild
+                    && !document.body.firstElementChild.firstElementChild
+                    ) {
                     beginBattle();
                 }
-            }
+            } else if (computerShipsLeft[oceanShip.alt] < 0) return;
         }
+
+        /**
+         * notify modules about placement of ships
+         * register occupied spaces by a ship
+         */
         if (oceanShip.width !== 30) {
             whoseBoard.recordShipPlaced([coordinates.x, coordinates.y], length, true);
-            let loopCell = cell;
-            for (let i = 0; i < length; i++) {
+            let loopCell = this;
+            for (let i = 0; i < length; i += 1) {
                 occupiedCells.push(loopCell);
                 loopCell = loopCell.nextElementSibling;
             }
         } else {
             whoseBoard.recordShipPlaced([coordinates.x, coordinates.y], length, false);
-            let loopCell = cell;
-            for (let i = 0; i < length - 1; i++) {
+            let loopCell = this;
+            occupiedCells.push(loopCell);
+            for (let i = 1; i < length; i += 1) {
+                loopCell = getCell(whichBoard, coordinates.x + i, coordinates.y);
                 occupiedCells.push(loopCell);
-                loopCell = getCell(cell.parentElement.parentElement, coordinates.x + 1, coordinates.y);
             }
         }
         ev.target.appendChild(oceanShip);
     }
 
     function initialize(user, computer) {
+        userPlayer = user;
+        compPlayer = computer;
         const fleets = document.querySelectorAll('.fleet');
         const cells = document.querySelectorAll('.cell');
         fleets.forEach((fleet) => {
@@ -175,9 +272,7 @@ const Dom = (function () {
         });
         cells.forEach((cell) => {
             cell.addEventListener('dragover', dragoverHandler);
-            cell.addEventListener('drop', (ev) => {
-                dropHandler(ev, cell, user, computer);
-            });
+            cell.addEventListener('drop', dropHandler);
         });
     }
 

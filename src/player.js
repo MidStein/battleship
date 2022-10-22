@@ -2,26 +2,34 @@ import Gameboard from './gameboard';
 
 export default function Player() {
     const gameboard = Gameboard();
-    const alreadyShot = [];
+
+    function recordShipPlaced(origin, length, isHoriz) {
+        gameboard.recordShipPlaced(origin, length, isHoriz);
+    }
+    
+    function validateUserAttempt(coordinates) {
+        return gameboard.recieveAttack(coordinates);
+    }
 
     function computerPlay() {
         let shootCoord;
         do {
             shootCoord = [
-                Math.floor(Math.random() * 10), 
-                Math.floor(Math.random() * 10)
+                Math.floor(Math.random() * 10),
+                Math.floor(Math.random() * 10),
             ];
-        } while (alreadyShot.includes(shootCoord));
-        gameboard.recieveAttack(shootCoord);
-        alreadyShot.push(shootCoord);
+        } while (!gameboard.recieveAttack(shootCoord));
+        return shootCoord;
     }
 
-    function recordShipPlaced(origin, length, isHoriz) {
-        gameboard.recordShipPlaced(origin, length, isHoriz);
+    function checkLoss() {
+        return gameboard.allSunk();
     }
 
     return {
-        computerPlay,
         recordShipPlaced,
+        validateUserAttempt,
+        computerPlay,
+        checkLoss,
     };
 }
